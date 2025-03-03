@@ -4,6 +4,7 @@ import { improveTranscription } from './ai-improve-chunk-transcription'
 import { generateMeetingNote } from './ai-create-note-based-on-chunk'
 import { diffWords } from 'diff'
 import type { Settings } from "@screenpipe/browser"
+import randomColor from 'randomcolor'
 
 interface DiffChunk {
     value: string
@@ -200,6 +201,21 @@ export function createHandleNewChunk(deps: HandleNewChunkDeps) {
                     chunks,
                     mergedChunks,
                     lastProcessedIndex: chunks.length
+                }
+                
+                // Ensure speakerColors exists and add color for any new speakers
+                if (!newData.speakerColors) {
+                    newData.speakerColors = {}
+                }
+                
+                // Check if current chunk's speaker needs a color
+                if (chunk.speaker && !newData.speakerColors[chunk.speaker]) {
+                    newData.speakerColors[chunk.speaker] = randomColor({
+                        // luminosity: 'light',
+                        luminosity: 'dark',
+                        format: 'hex',
+                        // seed: chunk.speaker
+                    })
                 }
                 
                 void updateStore(newData)

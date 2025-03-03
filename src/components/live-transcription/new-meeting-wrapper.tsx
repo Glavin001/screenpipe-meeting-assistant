@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "@/hooks/use-toast"
 import { handleStartNewMeeting } from '@/components/meeting-history/meeting-utils'
 import { cn } from "@/lib/utils"
+import { QuestionsEditor } from "./questions-editor"
 
 
 export function LiveTranscription() {
@@ -144,12 +145,22 @@ export function LiveTranscription() {
 
                     {/* Notes Panel */}
                     <div className="h-full overflow-hidden">
-                        <NotesEditor 
-                            onTimeClick={handleTimeClick} 
-                            onNewMeeting={handleNewMeeting}
-                            isRecording={isRecording}
-                            onToggleRecording={toggleRecording}
-                        />
+                        <div className="h-full flex flex-col">
+                            <div className="h-1/2">
+                                <NotesEditor 
+                                    onTimeClick={handleTimeClick} 
+                                    onNewMeeting={handleNewMeeting}
+                                    isRecording={isRecording}
+                                    onToggleRecording={toggleRecording}
+                                />
+                            </div>
+                            <div className="h-1/2">
+                                <QuestionsEditor
+                                    // questions={questions}
+                                    onTimeClick={handleTimeClick}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </Split>
 

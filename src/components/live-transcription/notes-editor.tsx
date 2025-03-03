@@ -38,6 +38,8 @@ export const NotesEditor = memo(function NotesEditor({
     data,
     isLoading,
     updateStore,
+    notesViewMode,
+    setNotesViewMode
   } = useMeetingContext()
   const [currentMessage, setCurrentMessage] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -45,7 +47,6 @@ export const NotesEditor = memo(function NotesEditor({
   const [editingTime, setEditingTime] = useState<string | null>(null)
   const [editTimeText, setEditTimeText] = useState('')
   const [showInvalidTime, setShowInvalidTime] = useState(false)
-  const [viewMode, setViewMode] = useState<'timeline' | 'text'>('text')
   const editRef = useRef<HTMLDivElement>(null)
   const editTimeRef = useRef<HTMLInputElement>(null)
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false)
@@ -483,17 +484,17 @@ export const NotesEditor = memo(function NotesEditor({
             <div className="mt-1 pt-1 border-t border-gray-200">
               <div className="px-3 py-1 text-xs text-gray-500">view type</div>
               <button
-                onClick={() => setViewMode('timeline')}
+                onClick={() => setNotesViewMode('timeline')}
                 className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded transition-colors w-full text-left
-                  ${viewMode === 'timeline' ? 'bg-gray-200/80' : 'hover:bg-gray-200/80'}`}
+                  ${notesViewMode === 'timeline' ? 'bg-gray-200/80' : 'hover:bg-gray-200/80'}`}
               >
                 <List className="h-4 w-4" />
                 <span>timeline</span>
               </button>
               <button
-                onClick={() => setViewMode('text')}
+                onClick={() => setNotesViewMode('text')}
                 className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded transition-colors w-full text-left
-                  ${viewMode === 'text' ? 'bg-gray-200/80' : 'hover:bg-gray-200/80'}`}
+                  ${notesViewMode === 'text' ? 'bg-gray-200/80' : 'hover:bg-gray-200/80'}`}
               >
                 <FileText className="h-4 w-4" />
                 <span>document</span>
@@ -518,7 +519,7 @@ export const NotesEditor = memo(function NotesEditor({
         </div>
 
         <div className="flex-1 min-h-0">
-          {viewMode === 'timeline' ? (
+          {notesViewMode === 'timeline' ? (
             <div 
               ref={scrollRef}
               onScroll={onScroll}
@@ -658,7 +659,7 @@ export const NotesEditor = memo(function NotesEditor({
         )}
       </div>
 
-      {viewMode === 'timeline' && (
+      {notesViewMode === 'timeline' && (
         <form onSubmit={sendMessage} className="flex-none p-2 bg-gray-100">
           <input
             type="text"

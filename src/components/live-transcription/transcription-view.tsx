@@ -3,7 +3,7 @@
 import { Loader2, ArrowDown, LayoutList, Layout } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
-import { TranscriptionChunk, ServiceStatus } from "../meeting-history/types"
+import { type TranscriptionChunk, ServiceStatus } from "../meeting-history/types"
 import { ChunkOverlay } from "./floating-container-buttons"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -46,8 +46,8 @@ function DiffText({ diffs }: { diffs: DiffChunk[] | null }) {
 }
 
 export function TranscriptionView({ isLoading, settings }: TranscriptionViewProps) {
-    const { title, notes, setNotes, data, updateStore, reloadData, improvingChunks, recentlyImproved } = useMeetingContext()
-    const [viewMode, setViewMode] = useState<'overlay' | 'sidebar' | 'timestamp'>('overlay')
+    const { title, notes, setNotes, data, updateStore, reloadData, improvingChunks, recentlyImproved, getSpeakerColor } = useMeetingContext()
+    const [viewMode, setViewMode] = useState<'overlay' | 'sidebar' | 'timestamp'>('sidebar')
     const [useOverlay, setUseOverlay] = useState(false)
     const [mergeModalOpen, setMergeModalOpen] = useState(false)
     const [nameModalOpen, setNameModalOpen] = useState(false)
@@ -256,7 +256,11 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                                     "outline-none rounded px-1 -mx-1",
                                                     improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
                                                     recentlyImproved[chunk.id] && "animate-glow"
-                                                )}>
+                                                )}
+                                                style={{
+                                                    borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
+                                                }}
+                                                >
                                                     {data?.editedMergedChunks[chunk.id]?.diffs ? (
                                                         <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
                                                     ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
@@ -279,12 +283,22 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="outline-none rounded flex-1">
-                                                {chunk.text}
+                                            <div className={cn(
+                                                "flex-grow pl-1",
+                                                improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
+                                                recentlyImproved[chunk.id] && "animate-glow"
+                                            )}
+                                            style={{
+                                                borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
+                                            }}
+                                            >
+                                                {data?.editedMergedChunks[chunk.id]?.diffs ? (
+                                                    <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
+                                                ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex gap-1">
+                                        <div className="flex gap-2">
                                             <div className="w-16 flex-shrink-0 text-xs text-gray-500 flex items-start">
                                                 {chunk.speaker !== undefined && (
                                                     <button
@@ -298,8 +312,18 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="outline-none rounded flex-1">
-                                                {chunk.text}
+                                            <div className={cn(
+                                                "flex-grow pl-1",
+                                                improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
+                                                recentlyImproved[chunk.id] && "animate-glow"
+                                            )}
+                                            style={{
+                                                borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
+                                            }}
+                                            >
+                                                {data?.editedMergedChunks[chunk.id]?.diffs ? (
+                                                    <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
+                                                ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
                                             </div>
                                         </div>
                                     )}
@@ -460,4 +484,4 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
             )}
         </>
     )
-} 
+}
