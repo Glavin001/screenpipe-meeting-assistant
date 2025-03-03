@@ -1,8 +1,9 @@
 # Meeting Assistant for `screenpipe`
 
-> See demo videos: https://github.com/Glavin001/screenpipe-meeting-assistant/issues/1
-
 Meeting Assistant is a real-time meeting enhancement tool built on top of Screenpipe. It leverages Screenpipe’s continuous multi-modal capture (screen, audio, and interaction events) to provide live transcription, intelligent mapping of pre-defined call goals, and dynamic AI-driven suggestions for follow-up questions—all during your meetings.
+
+https://github.com/user-attachments/assets/35a55eee-a54a-4c98-8a59-c415daafaf54
+
 
 ## Features
 - **Real-Time Transcription:** Continuously transcribes meeting audio using Screenpipe’s live capture.
