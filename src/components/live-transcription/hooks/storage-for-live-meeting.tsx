@@ -67,6 +67,7 @@ export interface LiveMeetingData {
     isAiNotesEnabled: boolean  // Add this field
     questions: Question[] // Add questions array
     notesViewMode?: 'timeline' | 'text' // Add view mode preference
+    transcriptionViewMode?: 'overlay' | 'sidebar' | 'timestamp' // Add transcription view mode preference
 }
 
 // Context type
@@ -93,6 +94,8 @@ interface MeetingContextType {
     notesViewMode: 'timeline' | 'text'
     setNotesViewMode: (mode: 'timeline' | 'text') => Promise<void>
     getSpeakerColor: (speaker: string) => string
+    transcriptionViewMode: 'overlay' | 'sidebar' | 'timestamp'
+    setTranscriptionViewMode: (mode: 'overlay' | 'sidebar' | 'timestamp') => Promise<void>
 }
 
 // Context creation
@@ -147,7 +150,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
                     isArchived: false,
                     questions: [], // Initialize empty questions array
                     notesViewMode: 'text', // Default view mode
-                    speakerColors: {}
+                    transcriptionViewMode: 'timestamp', // Default transcription view mode
+                    speakerColors: {},
                 }
                 await meetingStore.setItem(newData.id, newData)
                 setData(newData)
@@ -306,6 +310,11 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
             await updateStore({ ...data, notesViewMode: mode })
         },
         getSpeakerColor,
+        transcriptionViewMode: data?.transcriptionViewMode || 'overlay',
+        setTranscriptionViewMode: async (mode: 'overlay' | 'sidebar' | 'timestamp') => {
+            if (!data) return
+            await updateStore({ ...data, transcriptionViewMode: mode })
+        },
     }), [
         data,
         isLoading,

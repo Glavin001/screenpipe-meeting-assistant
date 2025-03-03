@@ -27,6 +27,27 @@ interface TranscriptionViewProps {
     settings: Settings
 }
 
+interface ViewModeToggleButtonProps {
+    viewMode: 'overlay' | 'sidebar' | 'timestamp'
+    onToggle: (newMode: 'overlay' | 'sidebar' | 'timestamp') => void
+}
+
+function ViewModeToggleButton({ viewMode, onToggle }: ViewModeToggleButtonProps) {
+    return (
+        <button
+            type="button"
+            onClick={() => onToggle(
+                viewMode === 'overlay' ? 'sidebar' :
+                viewMode === 'sidebar' ? 'timestamp' : 'overlay'
+            )}
+            className="p-2 hover:bg-gray-100 rounded-md transition-colors bg-background"
+            title={`switch to ${viewMode === 'overlay' ? 'sidebar' : viewMode === 'sidebar' ? 'timestamp' : 'overlay'} view`}
+        >
+            {viewMode === 'overlay' ? <LayoutList className="h-4 w-4" /> : <Layout className="h-4 w-4" />}
+        </button>
+    )
+}
+
 function DiffText({ diffs }: { diffs: DiffChunk[] | null }) {
     if (!diffs) return null
     
@@ -46,8 +67,7 @@ function DiffText({ diffs }: { diffs: DiffChunk[] | null }) {
 }
 
 export function TranscriptionView({ isLoading, settings }: TranscriptionViewProps) {
-    const { title, notes, setNotes, data, updateStore, reloadData, improvingChunks, recentlyImproved, getSpeakerColor } = useMeetingContext()
-    const [viewMode, setViewMode] = useState<'overlay' | 'sidebar' | 'timestamp'>('sidebar')
+    const { title, notes, setNotes, data, updateStore, reloadData, improvingChunks, recentlyImproved, getSpeakerColor, transcriptionViewMode, setTranscriptionViewMode } = useMeetingContext()
     const [useOverlay, setUseOverlay] = useState(false)
     const [mergeModalOpen, setMergeModalOpen] = useState(false)
     const [nameModalOpen, setNameModalOpen] = useState(false)
@@ -212,7 +232,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                     ref={scrollRef}
                     onScroll={onScroll}
                     onMouseUp={handleSelection}
-                    className="flex-1 overflow-y-auto bg-card min-h-0"
+                    className="flex-1 overflow-y-auto bg-card min-h-0 px-4"
                 >
                     {(!data?.chunks || data.chunks.length === 0) && (
                         <div className="flex items-center justify-center h-full text-gray-500">
@@ -220,24 +240,19 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                         </div>
                     )}
                     {data?.chunks && data.chunks.length > 0 && (
-                        <div className="space-y-2 relative p-4">
-                            <button
-                                onClick={() => setViewMode(prev => {
-                                    if (prev === 'overlay') return 'sidebar'
-                                    if (prev === 'sidebar') return 'timestamp'
-                                    return 'overlay'
-                                })}
-                                className="fixed top-2 left-2 p-2 hover:bg-gray-100 rounded-md transition-colors z-10 bg-background"
-                                title={`switch to ${viewMode === 'overlay' ? 'sidebar' : viewMode === 'sidebar' ? 'timestamp' : 'overlay'} view`}
-                            >
-                                {viewMode === 'overlay' ? <LayoutList className="h-4 w-4" /> : viewMode === 'sidebar' ? <Layout className="h-4 w-4" /> : <Layout className="h-4 w-4" />}
-                            </button>
+                        <div className="space-y-2 relative p-0">
+                            <div className="fixed top-2 left-2 z-10">
+                                <ViewModeToggleButton
+                                    viewMode={transcriptionViewMode}
+                                    onToggle={setTranscriptionViewMode}
+                                />
+                            </div>
                             {mergedChunks.map((chunk) => (
                                 <div 
                                     key={chunk.id}
                                     className="text-sm mb-2 group relative"
                                 >
-                                    {viewMode === 'overlay' ? (
+                                    {transcriptionViewMode === 'overlay' ? (
                                         <>
                                             <ChunkOverlay
                                                 timestamp={chunk.timestamp}
@@ -267,7 +282,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                                 </div>
                                             </div>
                                         </>
-                                    ) : viewMode === 'timestamp' ? (
+                                    ) : transcriptionViewMode === 'timestamp' ? (
                                         <div className="flex gap-1">
                                             <div className="w-16 flex-shrink-0 text-xs text-gray-500">
                                                 <div>{new Date(chunk.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>

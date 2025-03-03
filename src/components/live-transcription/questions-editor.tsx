@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, memo } from 'react'
-import { CheckCircle2, XCircle, Clock, AlertCircle, Plus, Edit2, Trash2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, AlertCircle, Plus, Edit2, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import type { Note } from '../meeting-history/types'
 import { useMeetingContext, type Question, type QuestionStatus } from './hooks/storage-for-live-meeting'
 import { useSettings } from '@/lib/hooks/use-settings'
@@ -117,6 +117,28 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
     )
   }
 
+  const moveQuestionUp = (index: number) => {
+    if (index === 0) return // Already at the top
+    
+    const newQuestions = [...questions]
+    const temp = newQuestions[index]
+    newQuestions[index] = newQuestions[index - 1]
+    newQuestions[index - 1] = temp
+    
+    setQuestions(newQuestions)
+  }
+
+  const moveQuestionDown = (index: number) => {
+    if (index === questions.length - 1) return // Already at the bottom
+    
+    const newQuestions = [...questions]
+    const temp = newQuestions[index]
+    newQuestions[index] = newQuestions[index + 1]
+    newQuestions[index + 1] = temp
+    
+    setQuestions(newQuestions)
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b flex justify-between items-center">
@@ -127,11 +149,12 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
         </Button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {questions.map((question) => {
+        {questions.map((question, index) => {
           const StatusIcon = statusIcons[question.status]
           const statusColor = statusColors[question.status]
           const isSelected = selectedQuestionId === question.id
           const isEditing = editingQuestionId === question.id
+          const hasAnswer = Boolean(question.answer?.length)
 
           return (
             <div
@@ -168,6 +191,26 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
                 <div className="flex gap-2">
                   {!isEditing && (
                     <>
+                      <div className="flex gap-1 mr-2">
+                        <button
+                          onClick={() => moveQuestionUp(index)}
+                          disabled={index === 0}
+                          className={`p-1 ${index === 0 ? 'text-gray-300' : 'text-gray-500 hover:text-blue-500'}`}
+                          type="button"
+                          aria-label="Move question up"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => moveQuestionDown(index)}
+                          disabled={index === questions.length - 1}
+                          className={`p-1 ${index === questions.length - 1 ? 'text-gray-300' : 'text-gray-500 hover:text-blue-500'}`}
+                          type="button"
+                          aria-label="Move question down"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                      </div>
                       <button
                         onClick={() => editQuestion(question)}
                         className="p-1 text-gray-500 hover:text-blue-500"
@@ -202,7 +245,7 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
                       </button>
                     </>
                   )}
-                  {question.status === 'inProgress' && !isEditing && (
+                  {question.status === 'inProgress' && !isEditing && hasAnswer && (
                     <button
                       onClick={() => attachAnswerToQuestion(question.id, notes)}
                       className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
@@ -211,15 +254,36 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
                       Complete
                     </button>
                   )}
+                  {question.status === 'skipped' && !isEditing && (
+                    <button
+                      onClick={() => updateQuestionStatus(question.id, 'open')}
+                      className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                      type="button"
+                    >
+                      Un-skip
+                    </button>
+                  )}
+                  {question.status === 'inProgress' && !isEditing && !hasAnswer && (
+                    <button
+                      onClick={() => updateQuestionStatus(question.id, 'open')}
+                      className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                      type="button"
+                    >
+                      Pause
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="mt-4">
-                <TextEditor
-                  notes={question.answer || []}
-                  setNotes={(notes) => updateAnswer(question.id, notes)}
-                  onTimeClick={onTimeClick}
-                />
-              </div>
+              {(question.answer && question.answer.length > 0) || 
+               (question.status !== 'open' && question.status !== 'skipped') ? (
+                <div className="mt-4">
+                  <TextEditor
+                    notes={question.answer || []}
+                    setNotes={(notes) => updateAnswer(question.id, notes)}
+                    onTimeClick={onTimeClick}
+                  />
+                </div>
+              ) : null}
             </div>
           )
         })}
