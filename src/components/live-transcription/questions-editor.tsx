@@ -72,13 +72,13 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
   const addNewQuestion = () => {
     const newQuestion: Question = {
       id: crypto.randomUUID(),
-      text: 'New Question',
+      text: '',
       status: 'open',
       answer: null
     }
     setQuestions([...questions, newQuestion])
     setEditingQuestionId(newQuestion.id)
-    setEditText('New Question')
+    setEditText('')
   }
 
   const editQuestion = (question: Question) => {
@@ -171,6 +171,7 @@ export const QuestionsEditor = memo(function QuestionsEditor({ onTimeClick }: Pr
                       <input
                         type="text"
                         value={editText}
+                        placeholder="Enter question"
                         onChange={(e) => setEditText(e.target.value)}
                         onBlur={saveQuestionEdit}
                         onKeyDown={(e) => {
