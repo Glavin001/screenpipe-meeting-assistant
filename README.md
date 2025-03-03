@@ -1,5 +1,7 @@
 # Meeting Assistant for `screenpipe`
 
+> See demo videos: https://github.com/Glavin001/screenpipe-meeting-assistant/issues/1
+
 Meeting Assistant is a real-time meeting enhancement tool built on top of Screenpipe. It leverages Screenpipe’s continuous multi-modal capture (screen, audio, and interaction events) to provide live transcription, intelligent mapping of pre-defined call goals, and dynamic AI-driven suggestions for follow-up questions—all during your meetings.
 
 ## Features
@@ -10,14 +12,17 @@ Meeting Assistant is a real-time meeting enhancement tool built on top of Screen
 - **Local-First Processing:** Ensures low-latency performance and robust privacy by processing all data locally.
 
 
-- Real-time transcription
-- Organize real-time notes into respective questions
-- Identify the current question being discussed
-- Recommend the next question to discussion (helpful if long list)
-- Recommend new questions based on what is being discussed
+- [x] Real-time transcription
+- [x] Organize real-time notes into respective questions
+- [x] Identify the current question being discussed and automatically mark question as in progress
+- [ ] Recommend the next question to discussion (helpful if long list)
+- [ ] Recommend new questions based on what is being discussed
 
 - Use Framer Motion to show the questions being re-ordered automatically based on AI recommended order.
-
+- start and end time for notes. end time is required by default, start allows a range UI
+- paste in contents from another doc to auto format as questions (title, description, order)
+- question templates (can create and import multiple into 1 call)
+- click on a note to highlight where transcript when it was said (preferrable range)
 
 ## How It Works
 1. **Capture:** Screenpipe records your screen and audio continuously.

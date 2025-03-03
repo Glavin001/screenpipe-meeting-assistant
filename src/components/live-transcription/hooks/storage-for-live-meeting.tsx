@@ -1,11 +1,11 @@
-import { createContext, useContext, useState, useEffect, type ReactNode, useMemo, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode, useMemo, useCallback, useRef, Dispatch, SetStateAction } from 'react'
 import type { TranscriptionChunk, Note, MeetingSegment } from "../../meeting-history/types"
 import type { MeetingAnalysis } from "./ai-create-all-notes"
 import localforage from "localforage"
 import { useSettings } from "@/lib/hooks/use-settings"
 import { createHandleNewChunk } from './handle-new-chunk'
 import type { ImprovedChunk } from './handle-new-chunk'
-import randomColor from 'randomcolor'
+import { useSearchParams } from 'next/navigation'
 
 export type TranscriptionViewMode = 'overlay' | 'sidebar' | 'timestamp'
 export type NotesViewMode = 'timeline' | 'text'
@@ -93,10 +93,10 @@ interface MeetingContextType {
     questions: Question[]
     setQuestions: (questions: Question[]) => Promise<void>
     notesViewMode: NotesViewMode
-    setNotesViewMode: (mode: NotesViewMode) => Promise<void>
+    setNotesViewMode: Dispatch<SetStateAction<NotesViewMode>>
     getSpeakerColor: (speaker: string) => string
     transcriptionViewMode: TranscriptionViewMode
-    setTranscriptionViewMode: (mode: TranscriptionViewMode) => Promise<void>
+    setTranscriptionViewMode: Dispatch<SetStateAction<TranscriptionViewMode>>
 }
 
 // Context creation
@@ -112,17 +112,32 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('text')
     const [transcriptionViewMode, setTranscriptionViewMode] = useState<TranscriptionViewMode>('timestamp')
 
+    // Get the id parameter from the URL query
+    const searchParams = useSearchParams()
+    const meetingId = searchParams.get('meetingId')
+
     // Single source of truth for loading data
     const loadData = useCallback(async () => {
         try {
+            console.log('MeetingProvider: loading data')
             let activeMeeting: LiveMeetingData | null = null
             
             // Get all meetings and find the first non-archived one
             const allMeetings = await meetingStore.keys()
             for (const key of allMeetings) {
                 const meeting = await meetingStore.getItem<LiveMeetingData>(key)
-                if (meeting && !meeting.isArchived) {
+                console.log('checking meeting:', key)
+
+                // If meetingId is provided, look for that specific meeting first
+                if (meetingId && meeting && meeting.id === meetingId) {
                     activeMeeting = meeting
+                    console.log('found requested meeting by ID:', meeting)
+                    break
+                }
+                // Otherwise fall back to finding any active meeting
+                if (!meetingId && meeting && !meeting.isArchived) {
+                    activeMeeting = meeting
+                    console.log('found active meeting:', meeting)
                     break
                 }
             }
@@ -167,7 +182,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [meetingId])
 
     // Expose reload function through context
     const reloadData = async () => {
@@ -234,13 +249,13 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         await updateStore({ ...data, analysis })
     }
 
-    const setQuestions = async (questions: Question[]) => {
+    const setQuestions = useCallback(async (questions: Question[]) => {
         if (!data) return
         await updateStore({ 
             ...data,
             questions
         })
-    }
+    }, [data, updateStore])
 
     const handleNewChunk = useCallback(
         createHandleNewChunk({

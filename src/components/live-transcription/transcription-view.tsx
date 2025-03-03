@@ -18,12 +18,6 @@ import { useAutoScroll } from './hooks/auto-scroll'
 import { TranscriptionChunkView } from './transcription-chunk-view'
 import type { TranscriptionViewMode } from './hooks/storage-for-live-meeting'
 
-interface DiffChunk {
-    value: string
-    added?: boolean
-    removed?: boolean
-}
-
 interface TranscriptionViewProps {
     isLoading: boolean
     settings: Settings
