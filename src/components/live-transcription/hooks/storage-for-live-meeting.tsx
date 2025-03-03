@@ -7,6 +7,9 @@ import { createHandleNewChunk } from './handle-new-chunk'
 import type { ImprovedChunk } from './handle-new-chunk'
 import randomColor from 'randomcolor'
 
+export type TranscriptionViewMode = 'overlay' | 'sidebar' | 'timestamp'
+export type NotesViewMode = 'timeline' | 'text'
+
 // Single store for all meetings
 export const meetingStore = localforage.createInstance({
     name: "live-meetings",
@@ -66,8 +69,6 @@ export interface LiveMeetingData {
     isArchived?: boolean // Add optional flag
     isAiNotesEnabled: boolean  // Add this field
     questions: Question[] // Add questions array
-    notesViewMode?: 'timeline' | 'text' // Add view mode preference
-    transcriptionViewMode?: 'overlay' | 'sidebar' | 'timestamp' // Add transcription view mode preference
 }
 
 // Context type
@@ -91,11 +92,11 @@ interface MeetingContextType {
     setRecentlyImproved: (chunks: Record<number, boolean>) => void
     questions: Question[]
     setQuestions: (questions: Question[]) => Promise<void>
-    notesViewMode: 'timeline' | 'text'
-    setNotesViewMode: (mode: 'timeline' | 'text') => Promise<void>
+    notesViewMode: NotesViewMode
+    setNotesViewMode: (mode: NotesViewMode) => Promise<void>
     getSpeakerColor: (speaker: string) => string
-    transcriptionViewMode: 'overlay' | 'sidebar' | 'timestamp'
-    setTranscriptionViewMode: (mode: 'overlay' | 'sidebar' | 'timestamp') => Promise<void>
+    transcriptionViewMode: TranscriptionViewMode
+    setTranscriptionViewMode: (mode: TranscriptionViewMode) => Promise<void>
 }
 
 // Context creation
@@ -108,6 +109,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     const { settings } = useSettings()
     const [improvingChunks, setImprovingChunks] = useState<Record<number, boolean>>({})
     const [recentlyImproved, setRecentlyImproved] = useState<Record<number, boolean>>({})
+    const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('text')
+    const [transcriptionViewMode, setTranscriptionViewMode] = useState<TranscriptionViewMode>('timestamp')
 
     // Single source of truth for loading data
     const loadData = useCallback(async () => {
@@ -149,8 +152,6 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
                     isAiNotesEnabled: true,  // Default to enabled
                     isArchived: false,
                     questions: [], // Initialize empty questions array
-                    notesViewMode: 'text', // Default view mode
-                    transcriptionViewMode: 'timestamp', // Default transcription view mode
                     speakerColors: {},
                 }
                 await meetingStore.setItem(newData.id, newData)
@@ -304,17 +305,11 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         setRecentlyImproved,
         questions: data?.questions || [],
         setQuestions,
-        notesViewMode: data?.notesViewMode || 'text',
-        setNotesViewMode: async (mode: 'timeline' | 'text') => {
-            if (!data) return
-            await updateStore({ ...data, notesViewMode: mode })
-        },
+        notesViewMode,
+        setNotesViewMode,
         getSpeakerColor,
-        transcriptionViewMode: data?.transcriptionViewMode || 'overlay',
-        setTranscriptionViewMode: async (mode: 'overlay' | 'sidebar' | 'timestamp') => {
-            if (!data) return
-            await updateStore({ ...data, transcriptionViewMode: mode })
-        },
+        transcriptionViewMode,
+        setTranscriptionViewMode,
     }), [
         data,
         isLoading,

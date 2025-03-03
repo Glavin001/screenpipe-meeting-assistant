@@ -80,6 +80,8 @@ export function useTranscriptionStream(
             
             onNewChunk(newChunk)
           }
+        } catch (error) {
+          console.error('stream error:', error)
         } finally {
           // Ensure we clean up if the loop breaks
           console.log('stream loop ended')

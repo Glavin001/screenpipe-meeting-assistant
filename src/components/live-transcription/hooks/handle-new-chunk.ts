@@ -6,7 +6,7 @@ import { diffWords } from 'diff'
 import type { Settings } from "@screenpipe/browser"
 import randomColor from 'randomcolor'
 
-interface DiffChunk {
+export interface DiffChunk {
     value: string
     added?: boolean
     removed?: boolean

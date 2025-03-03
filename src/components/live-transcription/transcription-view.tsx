@@ -15,6 +15,8 @@ import type { Settings } from "@screenpipe/browser"
 import { cn } from "@/lib/utils"
 import { useRecentChunks } from './hooks/pull-meetings-from-screenpipe'
 import { useAutoScroll } from './hooks/auto-scroll'
+import { TranscriptionChunkView } from './transcription-chunk-view'
+import type { TranscriptionViewMode } from './hooks/storage-for-live-meeting'
 
 interface DiffChunk {
     value: string
@@ -28,8 +30,8 @@ interface TranscriptionViewProps {
 }
 
 interface ViewModeToggleButtonProps {
-    viewMode: 'overlay' | 'sidebar' | 'timestamp'
-    onToggle: (newMode: 'overlay' | 'sidebar' | 'timestamp') => void
+    viewMode: TranscriptionViewMode
+    onToggle: (newMode: TranscriptionViewMode) => void
 }
 
 function ViewModeToggleButton({ viewMode, onToggle }: ViewModeToggleButtonProps) {
@@ -48,24 +50,6 @@ function ViewModeToggleButton({ viewMode, onToggle }: ViewModeToggleButtonProps)
     )
 }
 
-function DiffText({ diffs }: { diffs: DiffChunk[] | null }) {
-    if (!diffs) return null
-    
-    return (
-        <>
-            {diffs.map((diff, i) => {
-                if (diff.added) {
-                    return <span key={i} className="bg-green-100">{diff.value}</span>
-                }
-                if (diff.removed) {
-                    return <span key={i} className="bg-red-100 line-through">{diff.value}</span>
-                }
-                return <span key={i}>{diff.value}</span>
-            })}
-        </>
-    )
-}
-
 export function TranscriptionView({ isLoading, settings }: TranscriptionViewProps) {
     const { title, notes, setNotes, data, updateStore, reloadData, improvingChunks, recentlyImproved, getSpeakerColor, transcriptionViewMode, setTranscriptionViewMode } = useMeetingContext()
     const [useOverlay, setUseOverlay] = useState(false)
@@ -74,7 +58,6 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
     const [selectedSpeaker, setSelectedSpeaker] = useState<string | null>(null)
     const [targetSpeaker, setTargetSpeaker] = useState<string | null>(null)
     const [customSpeaker, setCustomSpeaker] = useState<string>('')
-    const [speakerMappings, setSpeakerMappings] = useState<Record<string, string>>({})
     const [selectedText, setSelectedText] = useState('')
     const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null)
     const [vocabDialogOpen, setVocabDialogOpen] = useState(false)
@@ -86,6 +69,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
     const { fetchRecentChunks } = useRecentChunks()
     const initialDataLoadRef = useRef(true)
     const { scrollRef, onScroll, isScrolledToBottom } = useAutoScroll(data?.chunks || [])
+    const speakerMappings = data?.speakerMappings || {}
 
     useEffect(() => {
         console.log('transcription view mounted')
@@ -111,14 +95,15 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
 
     const uniqueSpeakers = useMemo(() => {
         const speakerFirstAppearance = new Map<string, Date>()
-        data?.chunks?.forEach(chunk => {
+        
+        for (const chunk of data?.chunks || []) {
             if (chunk.speaker !== undefined) {
                 const mappedSpeaker = speakerMappings[chunk.speaker] || chunk.speaker
                 if (!speakerFirstAppearance.has(mappedSpeaker)) {
                     speakerFirstAppearance.set(mappedSpeaker, new Date(chunk.timestamp))
                 }
             }
-        })
+        }
 
         return Array.from(new Set(data?.chunks?.map(chunk => {
             const speaker = chunk.speaker
@@ -154,7 +139,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
             [selectedSpeaker]: newSpeaker,
             ...(targetSpeaker ? { [targetSpeaker]: newSpeaker } : {})
         }
-        setSpeakerMappings(newMappings)
+        // setSpeakerMappings(newMappings)
         await updateStore({ ...data, speakerMappings: newMappings })
         setMergeModalOpen(false)
         setNameModalOpen(false)
@@ -220,10 +205,15 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                 {showLoadButton && (
                     <div className="absolute top-2 right-2 z-10">
                         <button
+                            type="button"
                             onClick={loadStoredData}
                             className="px-3 py-1 bg-white text-black border border-black text-sm rounded-md hover:bg-gray-50 transition-colors flex items-center gap-2"
                         >
-                            {loadingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {loadingHistory ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <ArrowDown className="h-4 w-4" />
+                            )}
                             load history
                         </button>
                     </div>
@@ -241,107 +231,33 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                     )}
                     {data?.chunks && data.chunks.length > 0 && (
                         <div className="space-y-2 relative p-0">
+                            {/*
                             <div className="fixed top-2 left-2 z-10">
                                 <ViewModeToggleButton
                                     viewMode={transcriptionViewMode}
                                     onToggle={setTranscriptionViewMode}
                                 />
                             </div>
+                            */}
                             {mergedChunks.map((chunk) => (
                                 <div 
                                     key={chunk.id}
                                     className="text-sm mb-2 group relative"
                                 >
-                                    {transcriptionViewMode === 'overlay' ? (
-                                        <>
-                                            <ChunkOverlay
-                                                timestamp={chunk.timestamp}
-                                                speaker={chunk.speaker}
-                                                displaySpeaker={chunk.speaker ? getDisplaySpeaker(chunk.speaker) : 'speaker_0'}
-                                                onSpeakerClick={() => {
-                                                    if (chunk.speaker) {
-                                                        setSelectedSpeaker(chunk.speaker)
-                                                        setMergeModalOpen(true)
-                                                    }
-                                                }}
-                                                onGenerateNote={() => handleGenerateNote(chunk)}
-                                            />
-                                            <div className="relative">
-                                                <div className={cn(
-                                                    "outline-none rounded px-1 -mx-1",
-                                                    improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
-                                                    recentlyImproved[chunk.id] && "animate-glow"
-                                                )}
-                                                style={{
-                                                    borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
-                                                }}
-                                                >
-                                                    {data?.editedMergedChunks[chunk.id]?.diffs ? (
-                                                        <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
-                                                    ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : transcriptionViewMode === 'timestamp' ? (
-                                        <div className="flex gap-1">
-                                            <div className="w-16 flex-shrink-0 text-xs text-gray-500">
-                                                <div>{new Date(chunk.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                {chunk.speaker !== undefined && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedSpeaker(chunk.speaker!)
-                                                            setMergeModalOpen(true)
-                                                        }}
-                                                        className="hover:bg-gray-100 rounded-sm transition-colors"
-                                                    >
-                                                        {formatSpeaker(getDisplaySpeaker(chunk.speaker))}
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className={cn(
-                                                "flex-grow pl-1",
-                                                improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
-                                                recentlyImproved[chunk.id] && "animate-glow"
-                                            )}
-                                            style={{
-                                                borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
-                                            }}
-                                            >
-                                                {data?.editedMergedChunks[chunk.id]?.diffs ? (
-                                                    <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
-                                                ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex gap-2">
-                                            <div className="w-16 flex-shrink-0 text-xs text-gray-500 flex items-start">
-                                                {chunk.speaker !== undefined && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedSpeaker(chunk.speaker!)
-                                                            setMergeModalOpen(true)
-                                                        }}
-                                                        className="hover:bg-gray-100 rounded-sm transition-colors text-left w-full"
-                                                    >
-                                                        {formatSpeaker(getDisplaySpeaker(chunk.speaker))}
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className={cn(
-                                                "flex-grow pl-1",
-                                                improvingChunks[chunk.id] && "animate-shimmer bg-gradient-to-r from-transparent via-gray-100/50 to-transparent bg-[length:200%_100%]",
-                                                recentlyImproved[chunk.id] && "animate-glow"
-                                            )}
-                                            style={{
-                                                borderLeft: chunk.speaker ? `3px solid ${getSpeakerColor(chunk.speaker)}` : undefined
-                                            }}
-                                            >
-                                                {data?.editedMergedChunks[chunk.id]?.diffs ? (
-                                                    <DiffText diffs={data.editedMergedChunks[chunk.id].diffs} />
-                                                ) : data?.editedMergedChunks[chunk.id]?.text || chunk.text}
-                                            </div>
-                                        </div>
-                                    )}
+                                    <TranscriptionChunkView
+                                        chunk={chunk}
+                                        transcriptionViewMode={transcriptionViewMode}
+                                        getDisplaySpeaker={getDisplaySpeaker}
+                                        getSpeakerColor={getSpeakerColor}
+                                        onSpeakerClick={(speaker) => {
+                                            setSelectedSpeaker(speaker)
+                                            setMergeModalOpen(true)
+                                        }}
+                                        onGenerateNote={() => handleGenerateNote(chunk)}
+                                        improvingChunks={improvingChunks}
+                                        recentlyImproved={recentlyImproved}
+                                        editedChunk={data?.editedMergedChunks[chunk.id]}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -351,6 +267,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
 
             {!isScrolledToBottom && (
                 <button
+                    type="button"
                     onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
                     className="absolute bottom-4 right-4 p-2 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-colors"
                 >
@@ -360,6 +277,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
 
             {selectedText && selectionPosition && (
                 <button
+                    type="button"
                     onClick={addToVocabulary}
                     style={{
                         position: 'fixed',
@@ -375,7 +293,9 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
             <Dialog open={mergeModalOpen} onOpenChange={setMergeModalOpen}>
                 <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Rename or merge {formatSpeaker(getDisplaySpeaker(selectedSpeaker!))}</DialogTitle>
+                        <DialogTitle>
+                            {selectedSpeaker ? `Rename or merge ${formatSpeaker(getDisplaySpeaker(selectedSpeaker))}` : 'Rename or merge speaker'}
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 overflow-hidden">
                         <div className="flex gap-2 items-center border-b pb-4">
@@ -393,6 +313,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                 }}
                             />
                             <button
+                                type="button"
                                 onClick={() => mergeSpeakers(customSpeaker.trim())}
                                 disabled={!customSpeaker.trim()}
                                 className="px-3 py-2 hover:bg-gray-100 rounded-md transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -404,12 +325,13 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                         <div className="grid gap-1 overflow-y-auto pr-2">
                             <div className="text-sm text-gray-500 mb-1">or merge with:</div>
                             {uniqueSpeakers
-                                .filter(s => s !== getDisplaySpeaker(selectedSpeaker!))
+                                .filter(s => s !== (selectedSpeaker ? getDisplaySpeaker(selectedSpeaker) : ''))
                                 .map(speaker => (
                                     <button
+                                        type="button"
                                         key={speaker}
                                         onClick={() => {
-                                            setTargetSpeaker(speaker as string)
+                                            setTargetSpeaker(speaker)
                                             setNameModalOpen(true)
                                         }}
                                         className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-sm"
@@ -430,16 +352,18 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                             <button
-                                onClick={() => mergeSpeakers(getDisplaySpeaker(selectedSpeaker!))}
+                                type="button"
+                                onClick={() => selectedSpeaker && mergeSpeakers(getDisplaySpeaker(selectedSpeaker))}
                                 className="text-left px-3 py-2 hover:bg-gray-100 rounded-md transition-colors text-sm"
                             >
-                                keep {formatSpeaker(getDisplaySpeaker(selectedSpeaker!))}
+                                keep {selectedSpeaker ? formatSpeaker(getDisplaySpeaker(selectedSpeaker)) : ''}
                             </button>
                             <button
-                                onClick={() => mergeSpeakers(targetSpeaker!)}
+                                type="button"
+                                onClick={() => targetSpeaker && mergeSpeakers(targetSpeaker)}
                                 className="text-left px-3 py-2 hover:bg-gray-100 rounded-md transition-colors text-sm"
                             >
-                                keep {formatSpeaker(targetSpeaker!)}
+                                keep {targetSpeaker ? formatSpeaker(targetSpeaker) : ''}
                             </button>
                             <div className="flex gap-2 items-center">
                                 <input
@@ -456,6 +380,7 @@ export function TranscriptionView({ isLoading, settings }: TranscriptionViewProp
                                     }}
                                 />
                                 <button
+                                    type="button"
                                     onClick={() => mergeSpeakers(customSpeaker.trim())}
                                     disabled={!customSpeaker.trim()}
                                     className="px-3 py-2 hover:bg-gray-100 rounded-md transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
