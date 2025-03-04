@@ -1,10 +1,10 @@
 {
-  "name": "meeting-assistant",
+  "name": "meeting-maestro",
   "version": "0.1.5",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/m13v/screen-pipe/tree/main/pipes/meeting.git"
+    "url": "git+https://github.com/Glavin001/screenpipe-meeting-assistant.git"
   },
   "scripts": {
     "dev": "next dev",
