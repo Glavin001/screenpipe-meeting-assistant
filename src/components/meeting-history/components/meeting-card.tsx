@@ -164,7 +164,7 @@ export function MeetingCard({ meeting, onUpdate, settings, onDelete, isLive, onL
   const handleCardClick = () => {
     if (isLive) {
         // Instead of router.push, use window.location for a full page load
-        window.location.href = '/meetings/live'
+        window.location.href = `/meetings/live?meetingId=${meeting.id}`
     } else if (onLoadArchived) {
         console.log('loading archived meeting:', {
             id: meeting.id,

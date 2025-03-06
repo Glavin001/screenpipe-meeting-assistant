@@ -1,10 +1,14 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react'
-import { TranscriptionChunk, Note, MeetingSegment } from "../../meeting-history/types"
-import { MeetingAnalysis } from "./ai-create-all-notes"
+import { createContext, useContext, useState, useEffect, type ReactNode, useMemo, useCallback, useRef, Dispatch, SetStateAction } from 'react'
+import type { TranscriptionChunk, Note, MeetingSegment } from "../../meeting-history/types"
+import type { MeetingAnalysis } from "./ai-create-all-notes"
 import localforage from "localforage"
 import { useSettings } from "@/lib/hooks/use-settings"
 import { createHandleNewChunk } from './handle-new-chunk'
-import { ImprovedChunk } from './handle-new-chunk'
+import type { ImprovedChunk } from './handle-new-chunk'
+import { useSearchParams } from 'next/navigation'
+
+export type TranscriptionViewMode = 'overlay' | 'sidebar' | 'timestamp'
+export type NotesViewMode = 'timeline' | 'text'
 
 // Single store for all meetings
 export const meetingStore = localforage.createInstance({
@@ -12,12 +16,22 @@ export const meetingStore = localforage.createInstance({
     storeName: "meetings"  // All meetings live here
 })
 
+export interface Question {
+    id: string
+    text: string
+    status: QuestionStatus
+    answer: Note[] | null
+}
+
+export type QuestionStatus = 'open' | 'inProgress' | 'answered' | 'skipped'
+
 export interface LiveMeetingData {
     id: string  // Add explicit ID field
     chunks: TranscriptionChunk[]  // Keep raw chunks
     mergedChunks: TranscriptionChunk[]  // Add merged chunks
     editedMergedChunks: Record<number, ImprovedChunk>  // Change type to include diffs
     speakerMappings: Record<string, string>
+    speakerColors: Record<string, string>  // Mapping of speakers to their colors
     lastProcessedIndex: number
     startTime: string
     endTime?: string
@@ -54,6 +68,7 @@ export interface LiveMeetingData {
     }
     isArchived?: boolean // Add optional flag
     isAiNotesEnabled: boolean  // Add this field
+    questions: Question[] // Add questions array
 }
 
 // Context type
@@ -75,6 +90,13 @@ interface MeetingContextType {
     setImprovingChunks: (chunks: Record<number, boolean>) => void
     recentlyImproved: Record<number, boolean>
     setRecentlyImproved: (chunks: Record<number, boolean>) => void
+    questions: Question[]
+    setQuestions: (questions: Question[]) => Promise<void>
+    notesViewMode: NotesViewMode
+    setNotesViewMode: Dispatch<SetStateAction<NotesViewMode>>
+    getSpeakerColor: (speaker: string) => string
+    transcriptionViewMode: TranscriptionViewMode
+    setTranscriptionViewMode: Dispatch<SetStateAction<TranscriptionViewMode>>
 }
 
 // Context creation
@@ -87,18 +109,35 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     const { settings } = useSettings()
     const [improvingChunks, setImprovingChunks] = useState<Record<number, boolean>>({})
     const [recentlyImproved, setRecentlyImproved] = useState<Record<number, boolean>>({})
+    const [notesViewMode, setNotesViewMode] = useState<NotesViewMode>('text')
+    const [transcriptionViewMode, setTranscriptionViewMode] = useState<TranscriptionViewMode>('timestamp')
+
+    // Get the id parameter from the URL query
+    const searchParams = useSearchParams()
+    const meetingId = searchParams.get('meetingId')
 
     // Single source of truth for loading data
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
+            console.log('MeetingProvider: loading data')
             let activeMeeting: LiveMeetingData | null = null
             
             // Get all meetings and find the first non-archived one
             const allMeetings = await meetingStore.keys()
             for (const key of allMeetings) {
                 const meeting = await meetingStore.getItem<LiveMeetingData>(key)
-                if (meeting && !meeting.isArchived) {
+                console.log('checking meeting:', key)
+
+                // If meetingId is provided, look for that specific meeting first
+                if (meetingId && meeting && meeting.id === meetingId) {
                     activeMeeting = meeting
+                    console.log('found requested meeting by ID:', meeting)
+                    break
+                }
+                // Otherwise fall back to finding any active meeting
+                if (!meetingId && meeting && !meeting.isArchived) {
+                    activeMeeting = meeting
+                    console.log('found active meeting:', meeting)
                     break
                 }
             }
@@ -126,7 +165,9 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
                     deviceNames: new Set<string>(),
                     selectedDevices: new Set<string>(),
                     isAiNotesEnabled: true,  // Default to enabled
-                    isArchived: false
+                    isArchived: false,
+                    questions: [], // Initialize empty questions array
+                    speakerColors: {},
                 }
                 await meetingStore.setItem(newData.id, newData)
                 setData(newData)
@@ -141,7 +182,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [meetingId])
 
     // Expose reload function through context
     const reloadData = async () => {
@@ -153,7 +194,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         console.log('meeting provider mounted')
         loadData()
         return () => console.log('meeting provider unmounted')
-    }, [])
+    }, [loadData])
 
     const updateStore = async (newData: LiveMeetingData) => {
         try {            
@@ -208,6 +249,14 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         await updateStore({ ...data, analysis })
     }
 
+    const setQuestions = useCallback(async (questions: Question[]) => {
+        if (!data) return
+        await updateStore({ 
+            ...data,
+            questions
+        })
+    }, [data, updateStore])
+
     const handleNewChunk = useCallback(
         createHandleNewChunk({
             setData,
@@ -216,7 +265,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
             updateStore,
             settings
         }),
-        [settings]
+        []
     )
 
     // Initialize ref when data loads
@@ -224,6 +273,26 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         if (data) {
             latestChunksRef.current = data.chunks
         }
+    }, [data])
+
+    const getSpeakerColor = useCallback((speaker: string) => {
+        const fallbackColor = '#000000'
+        // console.log('getSpeakerColor: called with speaker:', speaker, data)
+        if (!data) return fallbackColor
+       
+        // If speakerColors doesn't exist yet, return a default color
+        if (!data.speakerColors) {
+            return fallbackColor
+        }
+
+        // If we already have a color for this speaker, return it
+        if (data.speakerColors[speaker]) {
+            return data.speakerColors[speaker]
+        }
+
+        // If no color exists for this speaker, return the fallback color
+        // instead of generating a new random color
+        return fallbackColor
     }, [data])
 
     const value = useMemo(() => ({
@@ -249,7 +318,27 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         setImprovingChunks,
         recentlyImproved,
         setRecentlyImproved,
-    }), [data, isLoading, handleNewChunk, improvingChunks, recentlyImproved])
+        questions: data?.questions || [],
+        setQuestions,
+        notesViewMode,
+        setNotesViewMode,
+        getSpeakerColor,
+        transcriptionViewMode,
+        setTranscriptionViewMode,
+    }), [
+        data,
+        isLoading,
+        handleNewChunk,
+        improvingChunks,
+        recentlyImproved,
+        updateStore,
+        reloadData,
+        setTitle,
+        setNotes,
+        setAnalysis,
+        setQuestions,
+        getSpeakerColor,
+    ])
 
     return (
         <MeetingContext.Provider value={value}>

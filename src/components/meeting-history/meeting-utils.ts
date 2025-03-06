@@ -27,6 +27,7 @@ export async function handleStartNewMeeting(currentData?: LiveMeetingData | null
             mergedChunks: [],
             editedMergedChunks: {},
             speakerMappings: {},
+            speakerColors: {},
             lastProcessedIndex: -1,
             startTime,
             title: null,
@@ -35,14 +36,15 @@ export async function handleStartNewMeeting(currentData?: LiveMeetingData | null
             deviceNames: new Set<string>(),
             selectedDevices: new Set<string>(),
             isArchived: false,
-            isAiNotesEnabled: true
+            isAiNotesEnabled: true,
+            questions: []
         }
 
         // 3. Store new meeting and wait for confirmation
         await meetingStore.setItem(newData.id, newData)
         
         // 4. Use window.location for a full page reload to ensure clean state
-        window.location.href = '/meetings/live'
+        window.location.href = `/meetings/live?meetingId=${newData.id}`
         return true
 
     } catch (error) {
@@ -78,7 +80,7 @@ export async function handleLoadMeeting(meeting: LiveMeetingData) {
         await meetingStore.setItem(meeting.id, updatedMeeting)
 
         // 3. Force a full page reload to ensure clean state
-        window.location.href = '/meetings/live?from=archive'
+        window.location.href = `/meetings/live?from=archive&meetingId=${meeting.id}`
         return true
 
     } catch (error) {

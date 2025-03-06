@@ -17,7 +17,46 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "@/hooks/use-toast"
 import { handleStartNewMeeting } from '@/components/meeting-history/meeting-utils'
 import { cn } from "@/lib/utils"
+import { QuestionsEditor } from "./questions-editor"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 
+interface RecordingToggleButtonProps {
+    isRecording: boolean;
+    toggleRecording: () => void;
+}
+
+function RecordingToggleButton({ isRecording, toggleRecording }: RecordingToggleButtonProps) {
+    return (
+        <div className="flex justify-end p-2">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleRecording()}
+                            className="z-20 hover:bg-gray-100/80 transition-colors"
+                            title={isRecording ? "stop recording" : "start recording"}
+                        >
+                            {isRecording ? (
+                                <Square className="h-4 w-4 text-red-500 fill-red-500" />
+                            ) : (
+                                <Play className="h-4 w-4 text-green-500 fill-green-500" />
+                            )}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                        {isRecording ? (
+                            <span>stop recording transcription</span>
+                        ) : (
+                            <span>start recording transcription</span>
+                        )}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
+    )
+}
 
 export function LiveTranscription() {
     const {
@@ -86,36 +125,12 @@ export function LiveTranscription() {
     return (
         <div className="h-full flex flex-col">
             <div
-                className="w-full relative"
-                style={{ height: windowHeight ? `${windowHeight}px` : '100vh' }}
+                className="w-full h-full"
             >
-                {/* Update recording toggle button with tooltip */}
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => toggleRecording()}
-                                className="absolute right-7 z-20 hover:bg-gray-100/80 transition-colors"
-                                title={isRecording ? "stop recording" : "start recording"}
-                            >
-                                {isRecording ? (
-                                    <Square className="h-4 w-4 text-red-500 fill-red-500" />
-                                ) : (
-                                    <Play className="h-4 w-4 text-green-500 fill-green-500" />
-                                )}
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-xs">
-                            {isRecording ? (
-                                <span>stop recording transcription</span>
-                            ) : (
-                                <span>start recording transcription</span>
-                            )}
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <RecordingToggleButton
+                    isRecording={isRecording}
+                    toggleRecording={toggleRecording}
+                />
 
                 {/* Mobile-first approach: vertical on mobile, horizontal on desktop */}
                 <Split
@@ -134,21 +149,34 @@ export function LiveTranscription() {
                     onDrag={onDrag}
                     direction={typeof window !== 'undefined' && window.innerWidth >= 768 ? 'horizontal' : 'vertical'}
                 >
-                    {/* Transcription Panel */}
+                    {/* Left Panel with Tabs */}
                     <div className="h-full overflow-hidden">
-                        <TranscriptionView
-                            settings={settings}
-                            isLoading={isLoading}
-                        />
+                        <Tabs defaultValue="transcription" className="h-full flex flex-col">
+                            <TabsList className="mx-2 mt-2">
+                                <TabsTrigger value="transcription">Transcription</TabsTrigger>
+                                <TabsTrigger value="summary">Summary</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="transcription" className="flex-1 overflow-auto">
+                                <TranscriptionView
+                                    settings={settings}
+                                    isLoading={isLoading}
+                                />
+                            </TabsContent>
+                            <TabsContent value="summary" className="flex-1 overflow-auto">
+                                <NotesEditor 
+                                    onTimeClick={handleTimeClick} 
+                                    onNewMeeting={handleNewMeeting}
+                                    isRecording={isRecording}
+                                    onToggleRecording={toggleRecording}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     </div>
 
-                    {/* Notes Panel */}
+                    {/* Right Panel - Questions */}
                     <div className="h-full overflow-hidden">
-                        <NotesEditor 
-                            onTimeClick={handleTimeClick} 
-                            onNewMeeting={handleNewMeeting}
-                            isRecording={isRecording}
-                            onToggleRecording={toggleRecording}
+                        <QuestionsEditor
+                            onTimeClick={handleTimeClick}
                         />
                     </div>
                 </Split>

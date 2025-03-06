@@ -15,6 +15,7 @@ interface TextEditorProps {
   onScroll?: (e: UIEvent<HTMLDivElement>) => void
   isEditing?: boolean
   analysis?: MeetingAnalysis | null
+  onTimeClick?: (timestamp: Date) => void
 }
 
 export function TextEditor({ 
@@ -23,7 +24,8 @@ export function TextEditor({
   scrollRef, 
   onScroll, 
   isEditing = false,
-  analysis 
+  analysis,
+  onTimeClick
 }: TextEditorProps) {
   const [hoverX, setHoverX] = useState<number | null>(null)
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
@@ -84,6 +86,12 @@ export function TextEditor({
   const handleMouseLeave = () => {
     setHoverX(null)
     setHoveredNoteId(null)
+  }
+
+  const handleTimeClick = (timestamp: Date) => {
+    if (onTimeClick) {
+      onTimeClick(timestamp);
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -201,6 +209,28 @@ export function TextEditor({
         placeholder="type your notes..."
         autoFocus={isEditing}
       />
+      
+      {/* Display clickable timestamps for the notes */}
+      {notes.length > 0 && onTimeClick && (
+        <div className="mt-2 space-y-1">
+          {notes.map((note) => (
+            <div 
+              key={note.id}
+              className="text-xs text-gray-500 cursor-pointer hover:text-blue-500"
+              onClick={() => handleTimeClick(note.timestamp)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleTimeClick(note.timestamp);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+            >
+              {new Date(note.timestamp).toLocaleTimeString()} - {note.text.substring(0, 40)}{note.text.length > 40 ? '...' : ''}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 } 
